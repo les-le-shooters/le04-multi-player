@@ -571,7 +571,7 @@ void PumpMessages()
 
 bool EscPressed()
 {
-    return g_hwnd && GetForegroundWindow() == g_hwnd && (GetAsyncKeyState(VK_ESCAPE) & 0x8000);
+    return g_hwnd && GameForeground() && (GetAsyncKeyState(VK_ESCAPE) & 0x8000);
 }
 
 void SetTitle(const wchar_t* text)

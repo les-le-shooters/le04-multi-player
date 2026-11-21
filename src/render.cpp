@@ -1,5 +1,6 @@
 // 渲染：挂 IDXGISwapChain::Present（DxLib 走 D3D11），每帧跑调试逻辑并用 ImGui 画 P2 的标记和状态（取自 lenprac）
 #include "mod.h"
+#include <algorithm>
 #include <d3d11.h>
 #include <dxgi1_2.h>
 
@@ -24,13 +25,25 @@ static WNDPROC g_origWndProc;
 static UINT g_bbWidth = 640, g_bbHeight = 480;
 int g_fpsCap = 0;
 
+static bool g_appActive = true;   // Windows 说游戏窗口是不是激活的（WM_ACTIVATEAPP，吞掉之前记下）
+
 // 游戏在后台也当作激活状态（吞掉失焦类消息）
 static LRESULT CALLBACK HookWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
+    if (msg == WM_ACTIVATEAPP) g_appActive = wp != 0;
     bool lose = (msg == WM_ACTIVATEAPP && !wp) || (msg == WM_ACTIVATE && LOWORD(wp) == WA_INACTIVE)
         || msg == WM_KILLFOCUS || (msg == WM_NCACTIVATE && !wp);
     if (lose) return msg == WM_NCACTIVATE ? TRUE : 0;
     return CallWindowProcW(g_origWndProc, hwnd, msg, wp, lp);
+}
+
+// 本机的游戏窗口在前台：前台窗口属于本进程，或者 Windows 说游戏窗口是激活的
+bool GameForeground()
+{
+    HWND fg = GetForegroundWindow();
+    DWORD pid = 0;
+    if (fg) GetWindowThreadProcessId(fg, &pid);
+    return (fg && (fg == g_hwnd || pid == GetCurrentProcessId())) || (g_origWndProc && g_appActive);
 }
 
 static void CreateRtv()
@@ -136,12 +149,39 @@ static void Frame(IDXGISwapChain* sc)
     if (!g_rtv) CreateRtv();
     ++g_frame;
 
+    if (g_debug && g_frame % 300 == 1) {   // 调试：前台窗口和画面
+        HWND fg = GetForegroundWindow();
+        DWORD pid = 0;
+        GetWindowThreadProcessId(fg, &pid);
+        RECT rc = {};
+        GetClientRect(g_hwnd, &rc);
+        char c1[64] = {}, c2[64] = {};
+        GetClassNameA(fg, c1, 64);
+        GetClassNameA(g_hwnd, c2, 64);
+        Log("focus: fg=%p (pid %s, class %s) hwnd=%p root=%p (class %s) client %ldx%ld backbuffer %ux%u, foreground %d (active %d)", fg,
+            pid == GetCurrentProcessId() ? "self" : "other", c1, g_hwnd, GetAncestor(g_hwnd, GA_ROOT), c2, rc.right, rc.bottom,
+            g_bbWidth, g_bbHeight, GameForeground(), g_appActive);
+    }
+    // 叠加层按 640×480 的游戏画面画。全屏时后台缓冲是桌面分辨率，DxLib 把画面等比放大居中（两边黑边）：
+    // 按画面区域的大小画，画完整体平移到画面区域
+    float scale = std::min(g_bbWidth / 640.0f, g_bbHeight / 480.0f);
+    ImVec2 game(640 * scale, 480 * scale), off((g_bbWidth - game.x) / 2, (g_bbHeight - game.y) / 2);
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
-    ImGui::GetIO().DisplaySize = ImVec2((float)g_bbWidth, (float)g_bbHeight);
+    ImGui::GetIO().DisplaySize = game;
     ImGui::NewFrame();
     DrawCoopUi();
     ImGui::Render();
+    ImDrawData* dd = ImGui::GetDrawData();
+    if (off.x != 0 || off.y != 0) {
+        for (int i = 0; i < dd->CmdListsCount; ++i) {
+            ImDrawList* l = dd->CmdLists[i];
+            for (ImDrawVert& v : l->VtxBuffer) { v.pos.x += off.x; v.pos.y += off.y; }
+            for (ImDrawCmd& c : l->CmdBuffer) { c.ClipRect.x += off.x; c.ClipRect.y += off.y; c.ClipRect.z += off.x; c.ClipRect.w += off.y; }
+        }
+    }
+    dd->DisplayPos = ImVec2(0, 0);
+    dd->DisplaySize = ImVec2((float)g_bbWidth, (float)g_bbHeight);
     if (g_rtv) {
         ID3D11RenderTargetView* oldRtv = nullptr;
         ID3D11DepthStencilView* oldDsv = nullptr;

@@ -1440,12 +1440,19 @@ void UpdateLocalInputs()
 }
 
 // ------------------------------------------------------------------ 联机：每帧的锁步
+// 本机的键盘算不算数：游戏窗口在前台。调试时总算（同一台电脑开两个窗口测试）；LE04MULTI_STRICTFOCUS 让调试时也按真实情况
+bool KeyboardFocused()
+{
+    static bool s_strict = g_debug && getenv("LE04MULTI_STRICTFOCUS");
+    return (g_debug && !s_strict) || GameForeground();
+}
+
 // 本机这一帧的按键（8 个槽位一位一个）：取原版刚算好的持续帧数；窗口不在前台时只认手柄
 uint8_t LocalMask()
 {
     const int* map = (const int*)Va(VA_SLOT_MAP);
     const int* hold = (const int*)Va(VA_HOLD);
-    bool focused = g_debug || GetForegroundWindow() == g_hwnd;
+    bool focused = KeyboardFocused();
     int pad = focused ? 0 : Fn<JoypadFn>(VA_GET_JOYPAD)(1);
     uint8_t m = 0;
     for (int s = 0; s < 8; ++s) {
@@ -2698,6 +2705,14 @@ void DrawNetUi()
         dl->AddRectFilled(ImVec2(at.x - 3, at.y - 1), ImVec2(at.x + ts.x + 3, at.y + ts.y + 1), IM_COL32(0, 0, 0, 140), 3);
     }
     dl->AddText(ImVec2(at.x + 1, at.y + 1), IM_COL32(0, 0, 0, 200), buf);
+    if (n.inGame && g_netGame && g_stg && !KeyboardFocused()) {   // 本机的键盘被忽略：在场地上方显眼地提示
+        const char* w = Tr(TX_O_NOFOCUS);
+        ImVec2 ws = ImGui::CalcTextSize(w);
+        float fx = At<float>(g_stg + STG_FIELD_X) * sc, fw = At<float>(g_stg + STG_FIELD_W) * sc;
+        ImVec2 wp(fx + (fw - ws.x) / 2 > 0 ? fx + (fw - ws.x) / 2 : 0, At<float>(g_stg + STG_FIELD_Y) * sc + 8 * sc);
+        dl->AddRectFilled(ImVec2(wp.x - 4 * sc, wp.y - 2 * sc), ImVec2(wp.x + ws.x + 4 * sc, wp.y + ws.y + 2 * sc), IM_COL32(0, 0, 0, 200), 3 * sc);
+        dl->AddText(wp, IM_COL32(255, 210, 80, 255), w);
+    }
     dl->AddText(at, col, buf);
 }
 

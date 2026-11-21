@@ -35,6 +35,7 @@ bool PatchCall(uint32_t rva, void* target, uint32_t expectRva);
 // ------------------------------------------------------------------ render.cpp
 bool InstallRenderHooks();
 bool CaptureBackbuffer(std::vector<uint8_t>& bgra, UINT& w, UINT& h);
+bool GameForeground();            // 本机的游戏窗口在前台（前台窗口属于本进程，或者游戏窗口是激活的）
 extern int g_fpsCap;              // 帧率：0 = 60fps，>0 = 指定帧率，<0 = 跟显示器刷新率（调试加速）
 
 // ------------------------------------------------------------------ input.cpp
@@ -109,7 +110,7 @@ enum TextId {
     TX_O_HOST, TX_O_GUEST, TX_O_DELAY, TX_O_AUTO, TX_O_MISMATCH, TX_O_FULL, TX_O_WAIT_GUESTS, TX_O_CONNECTING, TX_O_LOST,
     TX_O_DESYNC, TX_O_LEFT,
     TX_MY_IPV6, TX_COPY, TX_NO_IPV6, TX_O_DIRECT,
-    TX_ROLLBACK, TX_O_ROLLBACK,
+    TX_ROLLBACK, TX_O_ROLLBACK, TX_O_NOFOCUS,
     TX_COUNT
 };
 extern int g_lang;                // 界面语言（LG_*）

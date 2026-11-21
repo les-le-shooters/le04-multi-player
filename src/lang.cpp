@@ -81,6 +81,10 @@ const Text TEXTS[TX_COUNT] = {
     /* TX_O_DIRECT */ { u8"%s 直连 %d ms", u8"%s direct %d ms", u8"%s 直結 %d ms", u8"%s 직결 %d ms" },
     /* TX_ROLLBACK */ { u8"回滚", u8"Rollback", u8"ロールバック", u8"롤백" },
     /* TX_O_ROLLBACK */ { u8"回滚 %d帧", u8"rollback %d f", u8"ロールバック %dF", u8"롤백 %d프레임" },
+    /* TX_O_NOFOCUS */ { u8"游戏窗口不在前台，键盘操作无效（请点一下游戏窗口）",
+                       u8"The game window is not in front, so keyboard input is ignored (click the game window)",
+                       u8"ゲーム画面が前面にないため、キーボード入力は無効です（ゲーム画面をクリックしてください）",
+                       u8"게임 창이 앞에 있지 않아 키보드 입력이 무시됩니다 (게임 창을 클릭하세요)" },
 };
 
 const char* const LANG_NAMES[LG_COUNT] = { u8"中文", u8"English", u8"日本語", u8"한국어" };
